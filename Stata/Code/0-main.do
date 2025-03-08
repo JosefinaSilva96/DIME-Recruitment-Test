@@ -11,13 +11,13 @@
 	
 	* Add file paths to DataWork folder and the Github folder for RRF2024
 	if "`c(username)'" == "wb636611" {
-        global onedrive "C:\Users\wb631166\OneDrive - WBG\Desktop\Taxes\G2Px\Deliverables as of Dec 20"
-		global github 	"C:\WBG\GitHub\Devolve-G2PX"
+        global onedrive "C:\Users\wb631166\OneDrive - WBG\Desktop\DIME Recruitment Test\Data"
+		global github 	"C:\WBG\GitHub\DIME-Recruitment-Test\Stata"
     }
 	
 	
 	* Set globals for sub-folders 
-	global code 	"${github}\Code\Stata"
+	global code 	"${github}\Code"
 	global outputs 	"${github}\Outputs"
 	
 	sysdir set PLUS "C:\WBG\GitHub\Devolve-G2PX\Code\ado" // change path
@@ -37,8 +37,8 @@
 	* Run do files 
 	* Switch to 0/1 to not-run/run do-files 
 	if (0) do "${code}\01-processing-data.do"
-	if (1) do "${code}\02-analyzing-data.do"
-	
+	if (1) do "${code}\02-constructing-data.do"
+	if (0) do "${code}\03-analyzing-data.do"
 
 
 * End of do-file!	
