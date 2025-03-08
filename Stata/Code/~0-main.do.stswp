@@ -20,7 +20,7 @@
 	global code 	"${github}\Code"
 	global outputs 	"${github}\Outputs"
 	
-	sysdir set PLUS "C:\WBG\GitHub\Devolve-G2PX\Code\ado" // change path
+	sysdir set PLUS "C:\WBG\GitHub\DIME-Recruitment-Test\Stata\Code\ado" // change path
 
 
 
