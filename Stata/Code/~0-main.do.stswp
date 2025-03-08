@@ -1,26 +1,23 @@
 /*******************************************************************************
-						 Main do-file							   
+						 Main do-file-Josefina Silva							   
 *******************************************************************************/
 
 	* Set version
 	*version 18
 
 	* Set project global(s)	
-	// User: you 
-	display "`c(username)'" 	//Check username and copy to set project globals by user
 	
-	* Add file paths to DataWork folder and the Github folder for RRF2024
-	if "`c(username)'" == "wb636611" {
-        global onedrive "C:\Users\wb631166\OneDrive - WBG\Desktop\DIME Recruitment Test\Data"
-		global github 	"C:\WBG\GitHub\DIME-Recruitment-Test\Stata"
-    }
+	* Store username in a local macro
 	
+    global onedrive "C:/Users/wb631166/OneDrive - WBG/Desktop/DIME Recruitment Test"
+    global github   "C:/WBG/GitHub/DIME-Recruitment-Test/Stata"
 	
 	* Set globals for sub-folders 
-	global code 	"${github}\Code"
-	global outputs 	"${github}\Outputs"
+	global data 	"${onedrive}/Data"
+	global code 	"${github}/Code"
+	global outputs 	"${github}/Outputs"
 	
-	sysdir set PLUS "C:\WBG\GitHub\DIME-Recruitment-Test\Stata\Code\ado" // change path
+	sysdir set PLUS "C:/WBG/GitHub/DIME-Recruitment-Test/Stata/Code/ado" // change path
 
 
 

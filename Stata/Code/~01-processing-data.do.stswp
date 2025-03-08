@@ -1,142 +1,169 @@
-
+/*******************************************************************************
+						 Processing Data Do.file-Josefina Silva							   
+*******************************************************************************/
 *-------------------------------------------------------------------------------	
-* Data construction: HH 
-*------------------------------------------------------------------------------- 
-	// Load household-level data (HH)
-	use "${data}/Intermediate/TZA_CCT_HH.dta", clear
+* Loading data
+*------------------------------------------------------------------------------- 	
+	*First we are going to start with the GEM_Baseline data set	
+	
+	* Load GEM_Baseline.dta
+	
+	use "${data}/GEM_Baseline.dta", clear
+	
+*-------------------------------------------------------------------------------	
+* Checking for unique ID and fixing duplicates
+*------------------------------------------------------------------------------- 		
+
+	* Identify duplicates 
+	ieduplicates	hhid ///
+					using "${outputs}/duplicates.xlsx", ///
+					uniquevars(key) ///
+					keepvars(vid enid submissionday) ///
+					nodaily
+					
+	
+*-------------------------------------------------------------------------------	
+* Define locals to store variables for each level
+*------------------------------------------------------------------------------- 							
+	
+	* IDs
+	local ids 		hhid vid enid
+	
+	* Unit: household
+	local hh_vars 	floor - n_elder ///
+					food_cons - submissionday
+					
+	* Unit: Household-memebr
+	local hh_mem	gender age read clinic_visit sick days_sick ///
+					treat_fin treat_cost ill_impact days_impact
 	
 	
-	// Exercise 1: Plan construction outputs ----
-		// Plan the following outputs:
-			// 1. Area in acres.
-			// 2. Household consumption (food and nonfood) in USD.
-			// 3. Any HH member sick.
-			// 4. Any HH member can read or write.
-			// 5. Average sick days.
-			// 6. Total treatment cost in USD.
-			// 7. Total medical facilities.
-	
-	// Exercise 2: Standardize conversion values ----
-		// Define standardized conversion values:
-			// 1. Conversion factor for acres.
-				// Equal to area farm if unit is acres, 
-				// otherwise multiplied by value of hectare in acres
-			// 2. USD conversion factor.
-	
-		global acre_conv ???
-	
-	di $acre_conv
-	
-	generate 	area_acre = ??? 				if ??? == 1 , after(ar_farm)
-	replace 	area_acre = ??? * $acre_conv 	if ??? == 2
-	
-	lab var		area_acre ???
-	
-	* Consumption in usd
-	global usd ???
-	
-	foreach cons_var in ??? ??? {
+	* define locals with suffix and for reshape
+	foreach mem in `hh_mem' {
 		
-		* Save labels 
-		local `cons_var'_lab: variable label `cons_var'
-		
-		* generate vars
-		gen `cons_var'_usd = ??? * ??? , after(???)
-		
-		* apply labels to new variables
-		lab var `cons_var'_usd ???
-		
+		local mem_vars 		"`mem_vars' `mem'_*"
+		local reshape_mem	"`reshape_mem' `mem'_"
 	}
-	
-	// Exercise 3: Handle outliers ----
-		// you can use custom Winsorization function to handle outliers.
-
-	local winvars ??? ??? ???
-	
-	foreach win_var of local winvars {
 		
-		local `win_var'_lab: variable label `win_var'
-		
-		winsor 	`win_var', p(???) high gen(`win_var'_w)
-		order 	`win_var'_w, after(`win_var')
-		lab var `win_var'_w "``win_var'_lab' (Winsorized 0.05)"
-		
-	}
-	
-	//Save tempfile	
-	
 	
 *-------------------------------------------------------------------------------	
-* Data construction: HH - mem
-*------------------------------------------------------------------------------- 	
-	// Exercise 4.1: Create indicators at household level ----
-		// Instructions:
-			// Collapse HH-member level data to HH level.
-			// Plan to create the following indicators:
-				// 1. Any member was sick.
-				// 2. Any member can read/write.
-				// 3. Average sick days.
-				// 4. Total treatment cost in USD.
-	use "${data}/Intermediate/TZA_CCT_HH_mem.dta", clear
-	collapse 	(sum) ??? ///
-				(max) ??? ///
-				(mean) m_cost = ??? ???, by(???)
+* Tidy Data: HH
+*-------------------------------------------------------------------------------	
+
+	preserve 
+		
+		* Keep HH vars
+		keep `ids' `hh_vars'
+		
+		* Check if data type is string
+		ds, has(type string)	
+		
+		* Fixing submission date
+		gen submissiondate = date(submissionday, "YMD hms" )
+		format submissiondate %td
+		
+		* Encoding area farm unit
+		encode ar_farm_unit, gen(ar_unit)
+		
+		destring duration, replace
+		
+		* clean crop_other
+		replace crop_other = proper(crop_other)
+		
+		replace crop = 40 if regex(crop_other, "Coconut") == 1
+		replace crop = 41 if regex(crop_other, "Sesame") == 1
+		
+		label define df_CROP 40 "Coconut" 41 "Sesame", add
+		
 				
-	replace treat_cost = ??? if mi(???)	
-	
-				//Cost in USD
-	gen ??? = ??? * ???
+		
+		* Turn numeric variables with negative values into missings
+		ds, has(type numeric)
+		global numVars `r(varlist)'
 
-				// Add labels	
+		foreach numVar of global numVars {
+			
+			recode `numVar' (-88 = .d) //.d is don't know
+		}	
+		
+		* Explore variables for outliers
+		sum food_cons nonfood_cons ar_farm, det
+		
+		* dropping, ordering, labeling before saving
+		drop 	ar_farm_unit submissionday crop_other
 				
-	lab var ??? 		???
-	lab var ??? 		???
-	lab var ??? 		???
-	lab var ??? 		???
-	
-	drop ??? ??? 
-
-				// Save tempfile  
-	
+		order 	ar_unit, after(ar_farm)
+		
+		lab var submissiondate "Date of interview"
+		
+		isid hhid, sort 
+		
+		* Save data		
+		iesave 	"${data}/Intermediate/TZA_CCT_HH.dta", ///
+				idvars(hhid)  version(15) replace ///
+				report(path("${outputs}/TZA_CCT_HH_report.csv") replace)  
+		  
+		
+	restore
 	
 *-------------------------------------------------------------------------------	
-* Data construction: merge all hh datasets
-*------------------------------------------------------------------------------- 	
-		use `hh', clear 
+* Tidy Data: HH-member 
+*-------------------------------------------------------------------------------*
 
-	// Exercise 5: Merge HH and HH-member data ----
-		// Instructions:
-			// Merge the household-level data with the HH-member level indicators.
-	merge ??? ??? using ???, assert(3) nogen 
-			
-			// Merge hh and member data with the treatment data, ensure the treatment status is included in the final dataset.
- 	merge ??? ??? using ???, assert(3) nogen 
+	preserve 
 
+		keep `mem_vars' `ids'
+
+		* tidy: reshape tp hh-mem level 
+		reshape long `reshape_mem', i(`ids') j(member) 
+		
+		* clean variable names 
+		rename *_ *
+		
+		* drop missings 
+		drop if mi(gender)
+		
+		* Cleaning using iecodebook
+		// recode the non-responses to extended missing
+		// add variable/value labels
+		// create a template first, then edit the template and change the syntax to 
+		// iecodebook apply
+		iecodebook apply 	using ///
+								"${outputs}/hh_mem_codebook.xlsx"
+								
+		isid hhid member					
+		
+		* Save data: Use iesave to save the clean data and create a report 
+		iesave 	"${data}/Intermediate/TZA_CCT_HH_mem.dta", ///
+				idvars(hhid member)  version(15) replace ///
+				report(path("${outputs}/TZA_CCT_HH_mem_report.csv") replace)    
+				
+	restore			
 	
-			//Save data
-
 *-------------------------------------------------------------------------------	
-* Data construction: Secondary data
+* Tidy Data: Secondary data
 *------------------------------------------------------------------------------- 	
-	use "${data}/Intermediate/TZA_amenity_tidy.dta", clear
 	
-	// Exercise 4.2: Data construction: Secondary data ----
-		// Instructions:
-			// Calculate the total number of medical facilities by summing relevant columns.
-			// Apply appropriate labels to the new variables created.
-			
-	egen ??? = ???(??? ???)
-	lab var ??? ???
+	* Import secondary data 
+	import delimited "${data}/Raw/TZA_amenity.csv", clear
 	
-	// Exercise 6: Save final dataset ----
-		// Instructions:
-			// Only keep the variables you will use for analysis.
-			// Save the final dataset for further analysis.
-			// Save both the HH dataset and the secondary data.
-
-			//Save data
-	save "${data}/Final/TZA_amenity_analysis.dta", replace
-
+	* reshape wide 
+	reshape wide n , i(adm2_en) j(amenity) str
 	
-*************************************************************************** end!
+	* rename for clarity
+	rename n* n_*
 	
+	encode adm2_en , gen(district) 
+	
+	* Label vars 
+	lab var district "District"
+	lab var n_school "No. of schools"
+	lab var n_clinic "No. of clinics"
+	lab var n_hospital "No. of hospitals"
+	
+	* Save
+	keeporder district n_*
+	
+	save "${data}/Intermediate/TZA_amenity_tidy.dta", replace
+	
+****************************************************************************end!
