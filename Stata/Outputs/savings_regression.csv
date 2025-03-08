@@ -1,0 +1,20 @@
+="Determinants of Household Savings"
+
+="",="(1)",="(2)"
+="",="OLS Regression",="mod2"
+
+="Age HH",="0.236",="-0.031"
+="",="(1.135)",="(1.167)"
+
+="Years Education",="",="0.686"
+="",="",="(0.690)"
+
+="CATHOLIC",="",="1.423"
+="",="",="(2.848)"
+
+="Constant",="24.037",="21.382"
+="",="(20.882)",="(21.073)"
+
+="Observations",="188",="188"
+
+="Dependent variable: Total Household Savings in USD"

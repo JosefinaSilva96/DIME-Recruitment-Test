@@ -96,110 +96,59 @@
 To analyze what factors affect household savings, I would estimate a linear regression model (OLS) where household savings (in USD) is the dependent variable. 
 
 */
+
+ *load analysis data 
+	
+	use "${data}/GEM_analysis.dta", replace
 				
-				
-	* Model 1: Regress of food consumption value on treatment
-	regress food_cons_usd_w treatment
+			
+	* Model 1: Regress of total savings in age
+	regress total_savings_cash_jewellery_usd age
 	eststo mod1		// store regression results
 	
 	estadd local clustering "No" 
 	
 	* Model 2: Add controls 
-	reg food_cons_usd_w treatment crop_damage drought_flood
+	reg total_savings_cash_jewellery_usd age years_educ 1.religion
 	eststo mod2
 	
 	estadd local clustering "No" 
 	
-	* Model 3: Add clustering by village
-	reg food_cons_usd_w treatment crop_damage drought_flood, vce(cluster vid)
-	eststo mod3
+	*Save tables
 	
-	estadd local clustering "Yes" 
+	esttab mod1 mod2 using "$outputs/savings_regression.csv", replace b(%9.3f) se(%9.3f) star(* 0.1 ** 0.05 *** 0.01) ///
+    title("Determinants of Household Savings") mtitles("OLS Regression") ///
+    label nonotes addnote("Dependent variable: Total Household Savings in USD")
 	
-	* Export results in tex
-	esttab 	mod1 mod2 mod3 ///
-			using "$outputs/regressions.tex" , ///
-			label ///
-			b(%9.2f) se(%9.2f) ///
-			nomtitles ///
-			mgroup("Food consumption (USD)", pattern(1 0 0 ) span) ///
-			scalars("clustering Clustering") ///
-			replace
+/*
+
+1. What output that would be, and what information would be included in it? The output will be a regression results table that summarizes how different factors impact household savings.Regression Coefficients (β): Shows the direction and magnitude of each factor's effect on savings.
+Standard Errors: Measures the precision of the estimated coefficients.
+Significance Levels (***, **, *): Indicates whether the effects are statistically significant.
+R-squared (R²): Measures how much of the variation in household savings is explained by the independent variables.
+Number of Observations (N): Ensures sample size adequacy.
+F-statistic & p-value: Tests whether the model as a whole is statistically significant.
+
+2. What specification you would use and why?A linear regression model (OLS) is appropriate if household savings.
+
+3. What Variables Would Be Considered and Why? 
+total_savings_cash_jewellery_usd (DV)	Dependent variable: total household savings in USD
+age	Older individuals might have accumulated more savings over time.
+years_educ	More education can improve financial literacy and savings behavior.
+religion	Different religions may have norms around financial behavior, savings, and investment. Some emphasize savings
+Additional variables: 
+Employment type:	Affects savings stability.
+Access to financial services: Easier access to savings mechanisms increases savings.
+Household expenditures : High expenses might reduce savings.
 			
-*-------------------------------------------------------------------------------			
-* Graphs 
+*/
+
 *-------------------------------------------------------------------------------	
+* Save data set
+*------------------------------------------------------------------------------- 
 
-	* Bar graph by treatment for all districts 
-	gr bar 	area_acre_w, ///
-			over(treatment) ///
-			by(	district, row(1) note("") ///
-				 legend(pos(6)) ///
-				 title("Area cultivated by treatment assignemnt across districts")) ///
-			asy ///
-			legend(rows(1) order(0 "Assignment:" 1 "Control" 2 "Treatment") ) ///
-			subtitle(,pos(6) bcolor(none)) ///
-			blabel(total, format(%9.1f)) ///
-			ytitle("Average area cultivated (Acre)") name(g1, replace)
-			
-	gr export "$outputs/fig1.png", replace				
-			
-	* Distribution of non food consumption by female headed hhs with means
-	forvalues f = 0/1 {
-		
-		sum nonfood_cons_usd_w if female_head == `f'
-		local mean_`f' = r(mean)
-		
-	}
+save "${data}/GEM_analysis.dta", replace
 
-	twoway	(kdensity nonfood_cons_usd_w if female_head==0, color(grey)) ///
-			(kdensity nonfood_cons_usd_w if female_head==1, color(red)) , ///
-			xline(`mean_0', lcolor(grey) 	lpattern(dash)) ///
-			xline(`mean_1', lcolor(red) 	lpattern(dash)) ///
-			leg(order(0 "Household Head:" 1 "Male" 2 "Female" ) row(1) pos(6)) ///
-			xtitle("Distribution of non food consumption") ///
-			ytitle("Density") ///
-			title("Distribution of non food consumption") ///
-			note("Dashed lines represent the averages")
-			
-	gr export "$outputs/fig2.png", replace				
-			
-*-------------------------------------------------------------------------------			
-* Graphs: Secondary data
-*-------------------------------------------------------------------------------			
-			
-	use "${data}/Final/TZA_amenity_analysis.dta", clear
-	
-	* createa  variable to highlight the districts in sample
-	gen in_sample = inlist(district, 1, 3, 6)
-	
-	* Separate indicators by sample
-	separate n_school	, by(in_sample)
-	separate n_medical	, by(in_sample)
-	
-	* Graph bar for number of schools by districts
-	gr hbar 	n_school0 n_school1, ///
-				nofill ///
-				over(district, sort(n_school)) ///
-				legend(order(0 "Sample:" 1 "Out" 2 "In") row(1)  pos(6)) ///
-				ytitle("No. of Schools") ///
-				name(g1, replace)
-				
-	* Graph bar for number of medical facilities by districts				
-	gr hbar 	n_medical0 n_medical1, ///
-				nofill ///
-				over(district, sort(n_medical)) ///
-				legend(order(0 "Sample:" 1 "Out" 2 "In") row(1)  pos(6)) ///
-				ytitle("No. of Medical Facilities") ///
-				name(g2, replace)
-				
-	grc1leg2 	g1 g2, ///
-				row(1) legend(g1) ///
-				ycommon xcommon ///
-				title("School and Medical facilities by District", size(medsmall))
-			
-	
-	gr export "$outputs/fig3.png", replace			
 
 ****************************************************************************end!
 	
