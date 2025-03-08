@@ -6,58 +6,97 @@
 *------------------------------------------------------------------------------- 
 	
 	*load analysis data 
-	use "${data}/Final/TZA_CCT_analysis.dta", clear
+	
+	use "${data}/GEM_analysis.dta", replace
 
 *-------------------------------------------------------------------------------	
 * Summary stats
 *------------------------------------------------------------------------------- 
 
 	* defining globals with variables used for summary
-	global sumvars hh_size n_child_5 n_elder read sick female_head ///
-						livestock_now area_acre_w drought_flood crop_damage
+	global sumvars 
 						
-	* Summary table - overall and by districts
-	eststo all: 	estpost sum $sumvars
-	eststo district_1: estpost sum $sumvars if district==1
-	eststo district_2: estpost sum $sumvars if district==2
-	eststo district_3: estpost sum $sumvars if district==3
-	
-	
-	* Exporting table in csv
-	esttab 	all district_* ///
-			using "$outputs/summ_stats.csv", replace ///
-			label ///
-			main(mean %6.2f) aux(sd) ///
-			refcat(hh_size "HH characteristics" drought_flood "Shocks" , nolabel) ///
-			mtitle("Full Sample" " Kibaha" "Bagamoyos" "Chamwino") ///
-			nonotes addn(Mean with standard deviations in parentheses.)
+	* Define summary variables
+    global sumvars age religion years_educ rent_paid hours_job1_w hours_job2_w total_savings_cash_jewellery total_savings_cash_jewellery_usd
+
+     * Store summary statistics for the full sample
+     eststo all: estpost sum $sumvars
+
+    * Export table to CSV
+    esttab all ///  
+    using "$outputs/summ_stats.csv", replace ///  
+    label ///  
+    main(mean %6.2f) aux(sd) ///  
+    refcat(hh_size "HH characteristics", nolabel) ///  
+    mtitle("Full Sample") ///  
+    nonotes addn("Mean with standard deviations in parentheses.")
+
 	
 	* Also export in tex for latex
-	esttab 	all district_* ///
+	
+	esttab 	all  ///
 			using "$outputs/summ_stats.tex", replace ///
 			label ///
 			main(mean %6.2f) aux(sd) ///
-			refcat(hh_size "HH characteristics" drought_flood "Shocks" , nolabel) ///
-			mtitle("Full Sample" " Kibaha" "Bagamoyos" "Chamwino") ///
+			refcat(hh_size "HH characteristics" , nolabel) ///
+			mtitle("Full Sample") ///
 			nonotes addn(Mean with standard deviations in parentheses.)
-			
+
 *-------------------------------------------------------------------------------	
-* Balance tables
+* Summary stats savings in cash savings in jewellery and total savings 
+*------------------------------------------------------------------------------- 			 * Add labels
+
+	lab var cash_savings_num_w_usd	"Cash savings USD"
+	lab var jewellery_savings_w_usd "Jewellery Savings USD"
+	lab var total_savings_cash_jewellery_usd "Total Savings USD"
+	
+	
+     * Define savings-related variables
+     global savings_vars cash_savings_num_w_usd jewellery_savings_w_usd     total_savings_cash_jewellery_usd
+
+    * Store summary statistics for the full sample for winsorize variables
+    eststo all: estpost sum $savings_vars, detail
+
+   * Export table to CSV
+    esttab all using "$outputs/savings_summary.csv", replace ///  
+    cells("N mean p50 sd min max") ///  
+    label ///  
+    refcat(hh_size "HH characteristics", nolabel) ///  
+    mtitle("Full Sample") ///  
+    nonotes addn("Mean, median, standard deviation, min, and max included.")  
+	
+	
+*-------------------------------------------------------------------------------	
+* Graphs Breakdown for job type
 *------------------------------------------------------------------------------- 	
 	
-	* Balance (if they purchased cows or not)
-	iebaltab 	${sumvars}, ///
-				grpvar(treatment) ///
-				rowvarlabels	///
-				format(%9.2f)	///
-				savecsv("${outputs}/balance") ///
-				savetex("${outputs}/balance") ///
-				nonote addnote(" Significance: ***=.01, **=.05, *=.1") replace 			
+	*Load data set
+	
+	use "${data}/GEM_analysis_jobtype.dta", replace
+	
+	*Bar graph
+	
+	graph bar (mean) hours_job, over(job_type, label(angle(45))) over(treatment) ///
+    bar(1, color(navy)) bar(2, color(navy)) ///
+    legend(order(0 "Control" 1 "Treatment")) ///
+    title("Breakdown of Hours Worked by Job Type and Treatment Status") ///
+    ytitle("Average Hours Worked") ///
+    blabel(bar, format(%9.2f))
+	
+	*Save graph 
+	
+	graph export "$outputs/job_hours.png", replace
 
+   
 				
 *-------------------------------------------------------------------------------	
 * Regressions
-*------------------------------------------------------------------------------- 				
+*------------------------------------------------------------------------------- 
+/*
+To analyze what factors affect household savings, I would estimate a linear regression model (OLS) where household savings (in USD) is the dependent variable. 
+
+*/
+				
 				
 	* Model 1: Regress of food consumption value on treatment
 	regress food_cons_usd_w treatment

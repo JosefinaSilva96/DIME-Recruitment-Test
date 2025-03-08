@@ -251,12 +251,57 @@ Into US dollars- 1 US Dollar= 135 Kenyan Shillings */
 	
 	keep if _merge==3
 	
+	drop _merge
+	
 *-------------------------------------------------------------------------------	
 * Save data set: 
 *------------------------------------------------------------------------------- 		
 	
 	save "${data}/GEM_analysis.dta", replace
-
 	
+
+*-------------------------------------------------------------------------------	
+* Data construction: Job type data 
+*------------------------------------------------------------------------------- 		
+	
+  use "${data}/GEM_analysis.dta", replace
+  
+*-------------------------------------------------------------------------------	
+* Reshape
+*-------------------------------------------------------------------------------  
+
+  * Reshape job-related variables into long format
+
+   reshape long paid_cash_job hours_job, i(id) j(job_type)  
+   
+  *Create variable unpaid so is in the same format that job type
+  
+  expand 2 if job_type == 3, generate(new_row)  // Duplicate the last job entry to add unpaid work
+   replace job_type = 4 if new_row == 1  // Assign unpaid work
+   
+   *Create numeric variable
+   gen w20_hours_unpaid_job99_num = real(w20_hours_unpaid_job99)
+replace w20_hours_unpaid_job99_num = . if missing(w20_hours_unpaid_job99)
+   replace hours_job = w20_hours_unpaid_job99_num if job_type == 4
+   
+   *Create numeric variable
+   gen paid_cash_job_num = real(paid_cash_job)
+replace paid_cash_job_num = 0 if job_type == 4
+   replace paid_cash_job_num = 0 if job_type == 4  // Unpaid work has no payment
+drop new_row
+
+
+  *Labels
+  
+  label define job_labels 1 "Paid Job 1" 2 "Paid Job 2" 3 "Paid Job 3" 4 "Unpaid Work"
+  label values job_type job_labels
+  
+  *-------------------------------------------------------------------------------	
+* Save data set: 
+*------------------------------------------------------------------------------- 		
+	
+	save "${data}/GEM_analysis_jobtype.dta", replace
+	
+
 *************************************************************************** end!
 	
