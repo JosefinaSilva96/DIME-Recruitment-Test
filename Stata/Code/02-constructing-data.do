@@ -2,43 +2,131 @@
 						 Constructing Data Do.file-Josefina Silva							   
 *******************************************************************************/
 *-------------------------------------------------------------------------------	
-* Data construction: HH 
+* Data construction
 *------------------------------------------------------------------------------- 
-
-	use "${data}/Intermediate/TZA_CCT_HH.dta", clear
+    *Load data set 
 	
-	* Area in acre
-	// Equal to area farm if unit is acres, 
-	// otherwise multiplied by value of hectare in acres
 	
-	global acre_conv 2.47
+	use "${data}/GEM_baseline_analysis.dta", clear
 	
-	di $acre_conv
+	*Rename variables 
 	
-	generate 	area_acre = ar_farm 				if ar_unit == 1 , after(ar_farm)
-	replace 	area_acre = ar_farm * $acre_conv 	if ar_unit == 2
+	rename 	HHID id 
 	
-	lab var		area_acre "Area farmed in acres"
+	rename q102_age age 
 	
-	* Consumption in usd
-	global usd 0.00037
+	rename q103_a_religion religion
 	
-	foreach cons_var in food_cons nonfood_cons {
+	rename q104_a_tribe tribe 
+	
+	rename q105_attend_school school 
+	
+	rename q107_years_formal_education years_educ
+	
+	rename q122_father_attend_school father_school
+	
+	rename q124_father_years_of_education father_yeareduc
+	
+	rename q126_mother_attend_school mother_school
+	
+	rename q128_mother_years_of_education mother_yeareduc
+	
+	rename q130_a_husband husband
+	
+	rename q130_b_boyfriend boyfriend
+	
+	rename q130_c_father father 
+	
+	rename q130_d_mother mother 
+	
+	rename q130_e_stepfather stepfather
+	
+	rename q130_f_stepmother stepmother
+	
+	rename q130_g_father_in_law father_law
+	
+	rename q130_h_mother_in_law mother_law
+	
+	rename q130_i_own_children own_child
+	
+	rename q130_j_grandparents grand_parents
+	
+	rename q130_k_brothers brothers
+	
+	rename q130_l_sisters sisters
+	
+	rename q131_residence residence 
+	
+	rename q132_rent_paid rent_paid
+	
+	rename q134_a_electricity electricity 
+	
+	rename q134_b_radio radio
+	
+	rename q134_c_television tv
+	
+	rename w02_paid_in_cash paid_cash
+	
+	rename w02_paid_in_cash_job1 paid_cash_job1
+	
+	rename w02_paid_in_cash_job2 paid_cash_job2
+	
+	rename w02_paid_in_cash_job3 paid_cash_job3
+	
+	rename w07_hours_job1 hours_job1
+	
+	rename w07_hours_job2 hours_job2
+	
+	rename w07_hours_job3 hours_job3
+	
+	rename s02_cash_savings cash_savings
+	
+	rename s04_jewellery_savings_value jewellery_savings
+	
+	*See variables missing values
+	
+	tab years_educ //  we see that 2 people have 98 years of education
+	
+	tab hours_job1 // we see 1 obs that have -67 hrs
+	
+	tab hours_job2 //  we see 1 obs that have -50 hrs
+	
+	tab cash_savings // we see negative values 
+	
+	tab jewellery_savings // we see negative values
+	
+	*Histogram for checking variables 
+	
+	histogram age, title("Histogram Age") xtitle("Age") ytitle("Frequency")
+	
+	histogram years_educ, title("Histogram Years Education") xtitle("Years") ytitle("Frequency")
 		
-		* Save labels 
-		local `cons_var'_lab: variable label `cons_var'
-		
-		* generate vars
-		gen `cons_var'_usd = `cons_var' * $usd , after(`cons_var')
-		
-		* apply labels to new variables
-		lab var `cons_var'_usd "``cons_var'_lab' (USD)"
-		
-	}
+	histogram rent_paid, title("Histogram Rent Paid") xtitle("Amount") ytitle("Frequency")
 	
+	histogram hours_job1, title("Hours Job 1") xtitle("Hours") ytitle("Frequency")
+	
+	histogram hours_job2, title("Hours Job 2") xtitle("Hours") ytitle("Frequency")
+	
+	
+    *Replace negative values with missing 
+	
+	replace years_educ=. if years_educ==98
+	
+	replace hours_job1=. if hours_job1 < 0
+	
+	replace hours_job2=. if hours_job2 < 0
+	
+	replace jewellery_savings=. if jewellery_savings<0
+	
+	*Generate a numeric variable for cash savings 
+	
+	gen cash_savings_num = real(cash_savings)
+	
+    replace cash_savings_num = . if cash_savings_num < 0
 	
 	* Winsorize variables with outliers 
-	local winvars area_acre food_cons_usd nonfood_cons_usd
+	
+	local winvars cash_savings_num jewellery_savings hours_job1 hours_job2
 	
 	foreach win_var of local winvars {
 		
@@ -53,65 +141,121 @@
 	tempfile	 hh
 	save 		`hh'
 	
+	
+	*Labelling variables 
+	
+	*Household id 
+	
+	label var id "Household id"
+	
+	*Age 
+	
+	label var age "Age HH"
+	
+	*Religion
+	
+	gen type_religion=religion
+	
+	label var type_religion "Type of religion"
+	
+	la de lbltype_religion 1 "Catholic" 2 "Protestant/Other Christian" 3 "Traditional" 4 "Muslim" 5 "No religion" 6 "Other"	
+	
+	label values type_religion lbltype_religion
+	
+	*Years of education 
+	
+	label var years_educ "Years Education"
+	
+	*Jewellery Savings 
+	
+	label var jewellery_savings "Jewellery Savings"
+	
+	*Cash Savings 
+	
+	label var cash_savings_num "Cash Savings"
+	
+*Now I'm going to create a variable that combined total savings from cash and jewerly
+ 
+   gen total_savings_cash_jewellery= cash_savings_num_w+jewellery_savings_w
+   
+   sum total_savings_cash_jewellery
+  	
+/*Now I have to transform   
+    
+	    - cash_savings
+		- jewellery_savings
+		- total_savings_cash_jewellery
+		
+Into US dollars- 1 US Dollar= 135 Kenyan Shillings */
+
+  * Consumption in usd
+	global usd 135
+	
+	foreach cons_var in cash_savings_num_w jewellery_savings_w total_savings_cash_jewellery {
+    
+    * Save original variable label
+    local cons_var_lab: variable label `cons_var'
+    
+    * Generate new variable in USD
+    gen `cons_var'_usd = `cons_var' / $usd
+
+    * Move new variable next to the original
+    order `cons_var'_usd, after(`cons_var')
+
+    * Apply labels to new variables
+    label var `cons_var'_usd "`cons_var_lab' (USD)"
+}
+
 *-------------------------------------------------------------------------------	
-* Data construction: HH - mem
+* Save data set: 
 *------------------------------------------------------------------------------- 	
 
-	use "${data}/Intermediate/TZA_CCT_HH_mem.dta", clear
+   save "${data}/GEM_baseline_constructing.dta", replace
+
+*-------------------------------------------------------------------------------	
+* Data construction: Treatment status
+*------------------------------------------------------------------------------- 	
+
+   use "${data}/GEM_treatment_status_analysis.dta", replace
 	
-	* Collapse to hh level for total treatment cost
-	// any member sick, can read/write
-	// average sick days
-	collapse 	(sum) treat_cost ///
-				(max) read sick ///
-				(mean) m_cost = treat_cost days_sick, by(hhid)
-				
-	replace treat_cost = m_cost if mi(m_cost)		
+	*Rename variables 
 	
-	* Cost in USD
-	gen treat_cost_usd = treat_cost * $usd
+	rename HHID id
 
 	* Add labels
-	lab var read 				"Any member can read/write"
-	lab var sick 				"Any member was sick in the last 4 weeks"
-	lab var days_sick 			"Average sick days"
-	lab var treat_cost_usd 		"Total cost of treatment (USD)"
+	lab var id	"Household id"
+	lab var treatment "treatment status"
 	
-	drop treat_cost m_cost 
-	
-	tempfile mem 
-	save 	`mem'
+*-------------------------------------------------------------------------------	
+* Save data set: 
+*------------------------------------------------------------------------------- 	
+
+   save "${data}/GEM_treatment_status_constructing.dta", replace
 	
 	
 *-------------------------------------------------------------------------------	
 * Data construction: merge all hh datasets
 *------------------------------------------------------------------------------- 	
 	
-	* Start with hh level 
-	use `hh', clear 
+	* Load GEM Baseline
 	
-	* merge member data 
-	merge 1:1 hhid using `mem', assert(3) nogen 
-		
-	* merge treatment 
-	merge m:1 vid using "${data}/Raw/treat_status.dta", assert(3) nogen 
+	use "${data}/GEM_baseline_constructing.dta", replace
 	
-	* Save data
-	save "${data}/Final/TZA_CCT_analysis.dta", replace
-
+	*Destring id
+	
+	 destring id, replace 
+	
+	* merge treatment data 
+	
+	merge m:1 id using "${data}/GEM_treatment_status_constructing.dta"
+	
+	keep if _merge==3
+	
 *-------------------------------------------------------------------------------	
-* Data construction: Secondary data
-*------------------------------------------------------------------------------- 	
+* Save data set: 
+*------------------------------------------------------------------------------- 		
 	
-	use "${data}/Intermediate/TZA_amenity_tidy.dta", clear
-	
-	* Total medical facilities 
-	egen n_medical = rowtotal(n_clinic n_hospital)
-	
-	lab var n_medical "No. of medical facilities"
-
-	* Save data
-	save "${data}/Final/TZA_amenity_analysis.dta", replace
+	save "${data}/GEM_analysis.dta", replace
 
 	
 *************************************************************************** end!

@@ -8,162 +8,88 @@
 	
 	* Load GEM_Baseline.dta
 	
-	use "${data}/GEM_Baseline.dta", clear
+	use "${data}/GEM_Baseline.dta", clear //1,295 obs
 	
 *-------------------------------------------------------------------------------	
 * Checking for unique ID and fixing duplicates
 *------------------------------------------------------------------------------- 		
 
 	* Identify duplicates 
-	ieduplicates	hhid ///
-					using "${outputs}/duplicates.xlsx", ///
-					uniquevars(key) ///
-					keepvars(vid enid submissionday) ///
-					nodaily
-					
+	
+	duplicates report HHID
+	
+	duplicates report HHID q102_age q103_a_religion q131_residence w01_worked_ye~o
+	
+	duplicates drop HHID q102_age q103_a_religion q131_residence w01_worked_ye~o, force //3 observations deleted
+	
+				
 	
 *-------------------------------------------------------------------------------	
 * Define locals to store variables for each level
 *------------------------------------------------------------------------------- 							
 	
-	* IDs
-	local ids 		hhid vid enid
+	* Household ID
 	
-	* Unit: household
-	local hh_vars 	floor - n_elder ///
-					food_cons - submissionday
-					
-	* Unit: Household-memebr
-	local hh_mem	gender age read clinic_visit sick days_sick ///
-					treat_fin treat_cost ill_impact days_impact
+    local ids HHID
+
+    * Household-level variables 
 	
+    local hh_vars q131_residence q134_a_electr~y s01_savings_f~y
+
+    * Household-member-level variables 
 	
-	* define locals with suffix and for reshape
-	foreach mem in `hh_mem' {
-		
-		local mem_vars 		"`mem_vars' `mem'_*"
-		local reshape_mem	"`reshape_mem' `mem'_"
-	}
-		
+    local hh_mem q102_age q103_a_religion q107_years_fo~n w01_worked_yesno
+
+*-------------------------------------------------------------------------------	
+* Now I will see if my data is in a tidy level format
+*------------------------------------------------------------------------------- 		 
+
+  /*Now I'm going to see if the data is in a Tidy Format
+
+   - All variables have the same unit of observation: YES
+   
+   - There are multiple variables represented in a single column: NO
+   
+   - Each observation is separated into multiple rows: YES
+   
+   We can conclude that our data set is tidy so me can continue with the data cleaning
+   process
+   
+*/	
 	
 *-------------------------------------------------------------------------------	
-* Tidy Data: HH
-*-------------------------------------------------------------------------------	
-
-	preserve 
-		
-		* Keep HH vars
-		keep `ids' `hh_vars'
-		
-		* Check if data type is string
-		ds, has(type string)	
-		
-		* Fixing submission date
-		gen submissiondate = date(submissionday, "YMD hms" )
-		format submissiondate %td
-		
-		* Encoding area farm unit
-		encode ar_farm_unit, gen(ar_unit)
-		
-		destring duration, replace
-		
-		* clean crop_other
-		replace crop_other = proper(crop_other)
-		
-		replace crop = 40 if regex(crop_other, "Coconut") == 1
-		replace crop = 41 if regex(crop_other, "Sesame") == 1
-		
-		label define df_CROP 40 "Coconut" 41 "Sesame", add
-		
-				
-		
-		* Turn numeric variables with negative values into missings
-		ds, has(type numeric)
-		global numVars `r(varlist)'
-
-		foreach numVar of global numVars {
-			
-			recode `numVar' (-88 = .d) //.d is don't know
-		}	
-		
-		* Explore variables for outliers
-		sum food_cons nonfood_cons ar_farm, det
-		
-		* dropping, ordering, labeling before saving
-		drop 	ar_farm_unit submissionday crop_other
-				
-		order 	ar_unit, after(ar_farm)
-		
-		lab var submissiondate "Date of interview"
-		
-		isid hhid, sort 
-		
-		* Save data		
-		iesave 	"${data}/Intermediate/TZA_CCT_HH.dta", ///
-				idvars(hhid)  version(15) replace ///
-				report(path("${outputs}/TZA_CCT_HH_report.csv") replace)  
-		  
-		
-	restore
-	
-*-------------------------------------------------------------------------------	
-* Tidy Data: HH-member 
-*-------------------------------------------------------------------------------*
-
-	preserve 
-
-		keep `mem_vars' `ids'
-
-		* tidy: reshape tp hh-mem level 
-		reshape long `reshape_mem', i(`ids') j(member) 
-		
-		* clean variable names 
-		rename *_ *
-		
-		* drop missings 
-		drop if mi(gender)
-		
-		* Cleaning using iecodebook
-		// recode the non-responses to extended missing
-		// add variable/value labels
-		// create a template first, then edit the template and change the syntax to 
-		// iecodebook apply
-		iecodebook apply 	using ///
-								"${outputs}/hh_mem_codebook.xlsx"
-								
-		isid hhid member					
-		
-		* Save data: Use iesave to save the clean data and create a report 
-		iesave 	"${data}/Intermediate/TZA_CCT_HH_mem.dta", ///
-				idvars(hhid member)  version(15) replace ///
-				report(path("${outputs}/TZA_CCT_HH_mem_report.csv") replace)    
-				
-	restore			
-	
-*-------------------------------------------------------------------------------	
-* Tidy Data: Secondary data
+* Saving Data 
 *------------------------------------------------------------------------------- 	
+  
+  save "${data}/GEM_baseline_analysis.dta", replace
+  
+  
+ *-------------------------------------------------------------------------------	
+* Loading data
+*------------------------------------------------------------------------------- 	
+	*Now we are going to start with the GEM_Treatment_Status.dta data set	
 	
-	* Import secondary data 
-	import delimited "${data}/Raw/TZA_amenity.csv", clear
+	* Load GEM_Baseline.dta
 	
-	* reshape wide 
-	reshape wide n , i(adm2_en) j(amenity) str
+	use "${data}/GEM_Treatment_Status.dta", clear //1,296
 	
-	* rename for clarity
-	rename n* n_*
+*-------------------------------------------------------------------------------	
+* Checking for unique ID and fixing duplicates
+*------------------------------------------------------------------------------- 		
+
+	* Identify duplicates 
 	
-	encode adm2_en , gen(district) 
+	duplicates report HHID // no duplicates 
 	
-	* Label vars 
-	lab var district "District"
-	lab var n_school "No. of schools"
-	lab var n_clinic "No. of clinics"
-	lab var n_hospital "No. of hospitals"
 	
-	* Save
-	keeporder district n_*
-	
-	save "${data}/Intermediate/TZA_amenity_tidy.dta", replace
+*-------------------------------------------------------------------------------	
+* Saving Data 
+*------------------------------------------------------------------------------- 	
+  
+  save "${data}/GEM_treatment_status_analysis.dta", replace
+  
+	 
+
+ 	
 	
 ****************************************************************************end!
